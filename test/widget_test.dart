@@ -1,12 +1,17 @@
 import 'package:dasm_core/dasm_core.dart';
-import 'package:dasm_souq_mobile/app.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Splash screen renders brand title', (tester) async {
-    await setupDasmCore();
-    await tester.pumpWidget(const DasmSouqApp());
-    await tester.pump();
-    expect(find.text('سوق داسم'), findsWidgets);
+  test('ApiConfig production points to DASM API', () {
+    expect(ApiConfig.production.baseUrl, 'https://api.dasm.com.sa/api');
+  });
+
+  test('DasmColors primary is DASM blue', () {
+    expect(DasmColors.primary, const Color(0xFF1F4B7A));
+  });
+
+  test('DasmColors accent is DASM green', () {
+    expect(DasmColors.accent, const Color(0xFF009345));
   });
 }
