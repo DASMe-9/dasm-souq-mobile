@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  analyze-and-test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.7"
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Pub get (root app)
+        run: flutter pub get
+
+      - name: Pub get (dasm_core)
+        run: flutter pub get
+        working-directory: packages/dasm_core
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test (root app)
+        run: flutter test
+
+      - name: Test (dasm_core)
+        run: flutter test
+        working-directory: packages/dasm_core
