@@ -1,0 +1,67 @@
+workflows:
+  dasm-souq-ios-testflight:
+    name: DASM Souq iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      groups:
+        - dasm_souq_apple
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.dasm.souq"
+        FLUTTER_BUILD_NAME: "1.0.0"
+    scripts:
+      - name: Validate Apple publishing secrets
+        script: |
+          test -n "$APP_STORE_APPLE_ID"
+          test -n "$APP_STORE_CONNECT_PRIVATE_KEY"
+          test -n "$APP_STORE_CONNECT_KEY_IDENTIFIER"
+          test -n "$APP_STORE_CONNECT_ISSUER_ID"
+          test -n "$CERTIFICATE_PRIVATE_KEY"
+      - name: Set up keychain
+        script: keychain initialize
+      - name: Fetch iOS signing files
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+      - name: Apply provisioning profiles
+        script: |
+          xcode-project use-profiles \
+            --custom-export-options='{"testFlightInternalTestingOnly": true}'
+      - name: Install Flutter dependencies
+        script: flutter pub get
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Flutter analyze
+        script: flutter analyze --no-fatal-infos
+      - name: Flutter tests
+        script: flutter test --reporter compact
+      - name: Build IPA for TestFlight
+        script: |
+          set +e
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null)
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -ne 0 ] || [ -z "$LATEST_BUILD_NUMBER" ]; then
+            LATEST_BUILD_NUMBER=1
+          fi
+          NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          flutter build ipa --release \
+            --build-name="$FLUTTER_BUILD_NAME" \
+            --build-number="$NEXT_BUILD_NUMBER" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_app_store: false
